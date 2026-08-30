@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comparador de Mediciones</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --border:#334155;
+    --accent:#38bdf8;
+    --accent2:#34d399;
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+    --danger:#f87171;
+    --ok:#34d399;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:16px;
+    padding-bottom:60px;
+  }
+  h1{
+    font-size:1.3rem;
+    text-align:center;
+    margin:8px 0 20px;
+    color:var(--accent);
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .card h2{
+    font-size:0.95rem;
+    margin:0 0 12px;
+    color:var(--accent2);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .row{
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .row.three > div{flex:1;}
+  label{
+    display:block;
+    font-size:0.72rem;
+    color:var(--muted);
+    margin-bottom:4px;
+  }
+  input[type=number], input[type=text]{
+    width:100%;
+    padding:9px 10px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:#0f172a;
+    color:var(--text);
+    font-size:0.95rem;
+  }
+  input:focus{outline:none; border-color:var(--accent);}
+  .phase-row{
+    display:grid;
+    grid-template-columns:32px 1fr 1fr 1fr;
+    gap:8px;
+    align-items:end;
+    margin-bottom:8px;
+  }
+  .phase-label{
+    font-weight:600;
+    color:var(--accent);
+    text-align:center;
+    padding-bottom:9px;
+  }
+  .results{
+    margin-top:12px;
+    padding-top:12px;
+    border-top:1px dashed var(--border);
+  }
+  .result-line{
+    display:flex;
+    justify-content:space-between;
+    padding:4px 0;
+    font-size:0.88rem;
+  }
+  .result-line .val{
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .error-val.ok{color:var(--ok);}
+  .error-val.warn{color:var(--danger);}
+  .hint{
+    font-size:0.7rem;
+    color:var(--muted);
+    margin-top:2px;
+  }
+  details summary{
+    cursor:pointer;
+    color:var(--muted);
+    font-size:0.8rem;
+    margin-bottom:8px;
+  }
+  .crono-display{
+    text-align:center;
+    font-size:2.6rem;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    color:var(--accent);
+    letter-spacing:1px;
+    margin:6px 0 16px;
+  }
+  .crono-buttons{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+  }
+  .btn{
+    border:none;
+    border-radius:10px;
+    padding:11px 16px;
+    font-size:0.85rem;
+    font-weight:600;
+    cursor:pointer;
+    color:#0f172a;
+  }
+  .btn-start{background:var(--accent2); flex:1.6; padding:15px 16px; font-size:1rem;}
+  .btn-start.running{background:var(--danger); color:#fff;}
+  .btn-reset{background:var(--border); color:var(--text); flex:1;}
+  .crono-use{margin-top:2px;}
+  .btn-use{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--accent);
+    padding:8px 12px;
+    font-size:0.75rem;
+  }
+  .btn-use:active, .btn-start:active, .btn-reset:active{opacity:0.8;}
+  .btn-use.flash{
+    background:var(--accent2);
+    color:#0f172a;
+    border-color:var(--accent2);
+  }
+  .btn-use-cosfi{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--accent);
+    padding:8px 12px;
+    font-size:0.75rem;
+  }
+  .btn-use-cosfi.flash{
+    background:var(--accent2);
+    color:#0f172a;
+    border-color:var(--accent2);
+  }
+</style>
+</head>
+<body>
+
+<h1>⚡ Comparador de Mediciones</h1>
+
+<!-- CRONÓMETRO INTEGRADO -->
+<div class="card" id="cronoCard">
+  <h2>⏱ Cronómetro</h2>
+  <div class="crono-display" id="cronoDisplay">00:00.00</div>
+  <div class="crono-buttons">
+    <button class="btn btn-reset" id="btnReset">Reiniciar</button>
+    <button class="btn btn-start" id="btnStartStop">Iniciar</button>
+  </div>
+  <div class="crono-buttons crono-use">
+    <button class="btn btn-use" data-target="tiempoCron">→ Contraste energía activa</button>
+    <button class="btn btn-use" data-target="tiempoKvarh">→ Energía reactiva</button>
+    <button class="btn btn-use" data-target="tiempo1kwh">→ Registro de 1 kWh</button>
+  </div>
+  <div class="hint" id="cronoHint">Iniciá el cronómetro y luego tocá el botón del bloque donde querés usar el tiempo medido.</div>
+</div>
+
+<!-- BLOQUE 1: Potencia verdadera trifásica -->
+<div class="card">
+  <h2>1. Potencia verdadera (trifásica)</h2>
+  <div class="phase-row">
+    <div></div>
+    <div><label>I [A]</label></div>
+    <div><label>V</label></div>
+    <div><label>Cosfi</label></div>
+  </div>
+  <div class="phase-row">
+    <div class="phase-label">R</div>
+    <div><input type="number" id="iR" value="9.3" step="0.01"></div>
+    <div><input type="number" id="vR" value="220" step="1"></div>
+    <div><input type="number" id="cfR" value="0.95" step="0.01"></div>
+  </div>
+  <div class="phase-row">
+    <div class="phase-label">S</div>
+    <div><input type="number" id="iS" value="0" step="0.01"></div>
+    <div><input type="number" id="vS" value="220" step="1"></div>
+    <div><input type="number" id="cfS" value="1" step="0.01"></div>
+  </div>
+  <div class="phase-row">
+    <div class="phase-label">T</div>
+    <div><input type="number" id="iT" value="0" step="0.01"></div>
+    <div><input type="number" id="vT" value="220" step="1"></div>
+    <div><input type="number" id="cfT" value="1" step="0.01"></div>
+  </div>
+  <div class="results">
+    <div class="result-line"><span>Potencia fase R</span><span class="val" id="outPfaseR">-</span></div>
+    <div class="result-line"><span>Potencia fase S</span><span class="val" id="outPfaseS">-</span></div>
+    <div class="result-line"><span>Potencia fase T</span><span class="val" id="outPfaseT">-</span></div>
+    <div class="result-line"><span>Potencia verdadera total</span><span class="val" id="outPverdadera">-</span></div>
+  </div>
+</div>
+
+<!-- BLOQUE 2: Contraste por cronómetro -->
+<div class="card">
+  <h2>2. Contraste con cronómetro</h2>
+  <div class="row three">
+    <div>
+      <label>Vueltas / pulsos</label>
+      <input type="number" id="vueltas" value="1" step="1">
+    </div>
+    <div>
+      <label>Tiempo [s]</label>
+      <input type="number" id="tiempoCron" value="1.89" step="0.001">
+    </div>
+    <div>
+      <label>Constante medidor</label>
+      <input type="number" id="constante" value="1000" step="1">
+    </div>
+  </div>
+  <div class="results">
+    <div class="result-line"><span>Potencia según medidor</span><span class="val" id="outPmedidor">-</span></div>
+    <div class="result-line"><span>Error [%]</span><span class="val error-val" id="outErrorCron">-</span></div>
+    <div class="result-line"><span>Tiempo sugerido [s]</span><span class="val" id="outTiempoSugerido">-</span></div>
+    <div class="hint">Tiempo sugerido: el que debería medir el cronómetro si el medidor fuera exacto.</div>
+  </div>
+</div>
+
+<!-- BLOQUE 3: Carga manual de potencias -->
+<div class="card">
+  <h2>3. Carga manual de potencias (opcional)</h2>
+  <div class="row three">
+    <div>
+      <label>Potencia 1 [kW]</label>
+      <input type="number" id="p1" value="0.39" step="0.01">
+    </div>
+    <div>
+      <label>Potencia 2 [kW]</label>
+      <input type="number" id="p2" value="0.75" step="0.01">
+    </div>
+    <div>
+      <label>Potencia 3 [kW]</label>
+      <input type="number" id="p3" value="0.9" step="0.01">
+    </div>
+  </div>
+  <div class="results">
+    <div class="result-line"><span>Total [kW]</span><span class="val" id="outPtotalManual">-</span></div>
+    <div class="result-line"><span>Error vs medidor [%]</span><span class="val error-val" id="outErrorManual">-</span></div>
+  </div>
+</div>
+
+<!-- BLOQUE 4: Energía reactiva -->
+<div class="card">
+  <h2>4. Energía reactiva</h2>
+  <div class="row three">
+    <div>
+      <label>Vueltas</label>
+      <input type="number" id="vueltasReact" value="1" step="1">
+    </div>
+    <div>
+      <label>Tiempo kVArh [s]</label>
+      <input type="number" id="tiempoKvarh" value="6.03" step="0.01">
+    </div>
+    <div></div>
+  </div>
+  <div class="results">
+    <div class="result-line"><span>Cos fi total</span><span class="val" id="outCosfiTotal">-</span></div>
+  </div>
+  <div class="crono-buttons crono-use" style="margin-top:10px;">
+    <button class="btn btn-use-cosfi" id="btnUseCosfi">→ Cargar Cosfi (R, S, T)</button>
+  </div>
+</div>
+
+<!-- BLOQUE 5: Registro de 1 kWh -->
+<div class="card">
+  <h2>5. Registro de 1 kWh (medidor pulsa rápido)</h2>
+  <div class="row">
+    <div>
+      <label>Tiempo de 1 kWh [s]</label>
+      <input type="number" id="tiempo1kwh" value="144" step="0.01">
+    </div>
+  </div>
+  <div class="results">
+    <div class="result-line"><span>Demanda instantánea [kW]</span><span class="val" id="outDemanda">-</span></div>
+    <div class="result-line"><span>Error [%]</span><span class="val error-val" id="outErrorDemanda">-</span></div>
+    <div class="result-line"><span>Tiempo sugerido [s]</span><span class="val" id="outTiempoSugerido2">-</span></div>
+  </div>
+</div>
+
+<script>
+function num(id){
+  const v = parseFloat(document.getElementById(id).value);
+  return isNaN(v) ? 0 : v;
+}
+function fmt(n, decimals=4){
+  if(!isFinite(n)) return "-";
+  return n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:decimals});
+}
+function setError(elId, value){
+  const el = document.getElementById(elId);
+  el.textContent = isFinite(value) ? fmt(value,2) + " %" : "-";
+  el.classList.remove('ok','warn');
+  el.classList.add(Math.abs(value) <= 10 ? 'ok' : 'warn');
+}
+
+let ultimoCosfiTotal = NaN;
+
+function recalcular(){
+  // Bloque 1: potencias verdaderas por fase
+  const iR=num('iR'), vR=num('vR'), cfR=num('cfR');
+  const iS=num('iS'), vS=num('vS'), cfS=num('cfS');
+  const iT=num('iT'), vT=num('vT'), cfT=num('cfT');
+
+  const pR = (iR*vR*cfR)/1000;
+  const pS = (iS*vS*cfS)/1000;
+  const pT = (iT*vT*cfT)/1000;
+  const pVerdadera = pR + pS + pT;
+
+  document.getElementById('outPfaseR').textContent = fmt(pR) + " kW";
+  document.getElementById('outPfaseS').textContent = fmt(pS) + " kW";
+  document.getElementById('outPfaseT').textContent = fmt(pT) + " kW";
+  document.getElementById('outPverdadera').textContent = fmt(pVerdadera) + " kW";
+
+  // Bloque 2: contraste por cronómetro
+  const vueltas = num('vueltas');
+  const tiempoCron = num('tiempoCron');
+  const constante = num('constante');
+
+  const pMedidor = (3600*vueltas)/(tiempoCron*constante);
+  const errorCron = pVerdadera !== 0 ? ((pMedidor - pVerdadera)/pVerdadera)*100 : NaN;
+  const tiempoSugerido = (pVerdadera*constante) !== 0 ? (3600*vueltas)/(constante*pVerdadera) : NaN;
+
+  document.getElementById('outPmedidor').textContent = fmt(pMedidor) + " kW";
+  setError('outErrorCron', errorCron);
+  document.getElementById('outTiempoSugerido').textContent = isFinite(tiempoSugerido) ? fmt(tiempoSugerido) + " s" : "-";
+
+  // Bloque 3: carga manual
+  const p1=num('p1'), p2=num('p2'), p3=num('p3');
+  const totalManual = p1+p2+p3;
+  const errorManual = totalManual !== 0 ? ((pMedidor - totalManual)/totalManual)*100 : NaN;
+
+  document.getElementById('outPtotalManual').textContent = fmt(totalManual) + " kW";
+  setError('outErrorManual', errorManual);
+
+  // Bloque 4: energía reactiva
+  const vueltasReact = num('vueltasReact');
+  const tiempoKvarh = num('tiempoKvarh');
+  let cosfiTotal = NaN;
+  if(tiempoKvarh !== 0 && constante !== 0 && pMedidor !== 0){
+    const ratio = (3600*vueltasReact)/(tiempoKvarh*constante);
+    cosfiTotal = Math.cos(Math.atan(ratio/pMedidor));
+  }
+  document.getElementById('outCosfiTotal').textContent = isFinite(cosfiTotal) ? fmt(cosfiTotal,4) : "-";
+  ultimoCosfiTotal = cosfiTotal;
+
+  // Bloque 5: registro de 1 kWh
+  const tiempo1kwh = num('tiempo1kwh');
+  const demanda = tiempo1kwh !== 0 ? 3600/tiempo1kwh : NaN;
+  const errorDemanda = pVerdadera !== 0 ? ((demanda - pVerdadera)/pVerdadera)*100 : NaN;
+  const tiempoSugerido2 = pVerdadera !== 0 ? 3600/pVerdadera : NaN;
+
+  document.getElementById('outDemanda').textContent = isFinite(demanda) ? fmt(demanda) + " kW" : "-";
+  setError('outErrorDemanda', errorDemanda);
+  document.getElementById('outTiempoSugerido2').textContent = isFinite(tiempoSugerido2) ? fmt(tiempoSugerido2) + " s" : "-";
+}
+
+document.querySelectorAll('input').forEach(inp => {
+  inp.addEventListener('input', recalcular);
+});
+
+recalcular();
+
+// ---- Cronómetro integrado ----
+let cronoRunning = false;
+let cronoStartTs = 0;
+let cronoElapsed = 0; // ms acumulados (pausas incluidas)
+let cronoInterval = null;
+
+const cronoDisplay = document.getElementById('cronoDisplay');
+const btnStartStop = document.getElementById('btnStartStop');
+const btnReset = document.getElementById('btnReset');
+const cronoHint = document.getElementById('cronoHint');
+
+function formatCrono(ms){
+  const totalCent = Math.floor(ms / 10); // centésimas
+  const min = Math.floor(totalCent / 6000);
+  const sec = Math.floor((totalCent % 6000) / 100);
+  const cent = totalCent % 100;
+  const pad = (n, len=2) => String(n).padStart(len, '0');
+  return `${pad(min)}:${pad(sec)}.${pad(cent)}`;
+}
+
+function tickCrono(){
+  const now = performance.now();
+  const elapsed = cronoElapsed + (now - cronoStartTs);
+  cronoDisplay.textContent = formatCrono(elapsed);
+}
+
+btnStartStop.addEventListener('click', () => {
+  if(!cronoRunning){
+    cronoRunning = true;
+    cronoStartTs = performance.now();
+    btnStartStop.textContent = 'Detener';
+    btnStartStop.classList.add('running');
+    cronoInterval = setInterval(tickCrono, 30);
+  } else {
+    cronoRunning = false;
+    cronoElapsed += performance.now() - cronoStartTs;
+    btnStartStop.textContent = 'Iniciar';
+    btnStartStop.classList.remove('running');
+    clearInterval(cronoInterval);
+    cronoDisplay.textContent = formatCrono(cronoElapsed);
+  }
+});
+
+btnReset.addEventListener('click', () => {
+  cronoRunning = false;
+  cronoElapsed = 0;
+  clearInterval(cronoInterval);
+  btnStartStop.textContent = 'Iniciar';
+  btnStartStop.classList.remove('running');
+  cronoDisplay.textContent = formatCrono(0);
+});
+
+document.querySelectorAll('.btn-use').forEach(btn => {
+  btn.addEventListener('click', () => {
+    // Congelamos el cronómetro en el instante exacto del click, si estaba corriendo
+    if(cronoRunning){
+      cronoElapsed += performance.now() - cronoStartTs;
+      cronoStartTs = performance.now(); // se reinicia el tramo, el cronómetro sigue corriendo
+    }
+    const ms = cronoElapsed;
+
+    // Mismo criterio de truncado (hacia abajo, a centésimas) que usa el display mientras corre
+    cronoDisplay.textContent = formatCrono(ms);
+    const totalCent = Math.floor(ms / 10);
+    const seconds = totalCent / 100;
+
+    const target = document.getElementById(btn.getAttribute('data-target'));
+    target.value = seconds.toFixed(2);
+    recalcular();
+
+    btn.classList.add('flash');
+    cronoHint.textContent = `Tiempo (${seconds.toFixed(2)} s) cargado — ${btn.textContent.replace('→ ', '')}.`;
+    setTimeout(() => btn.classList.remove('flash'), 500);
+  });
+});
+
+document.getElementById('btnUseCosfi').addEventListener('click', () => {
+  const btn = document.getElementById('btnUseCosfi');
+  if(!isFinite(ultimoCosfiTotal)) return;
+  const valor = ultimoCosfiTotal.toFixed(4);
+  document.getElementById('cfR').value = valor;
+  document.getElementById('cfS').value = valor;
+  document.getElementById('cfT').value = valor;
+  recalcular();
+  btn.classList.add('flash');
+  setTimeout(() => btn.classList.remove('flash'), 500);
+});
+</script>
+
+<script>
+// Registro del Service Worker para que la app funcione 100% offline
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+
+</body>
+</html>
